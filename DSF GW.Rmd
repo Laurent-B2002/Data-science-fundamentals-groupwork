@@ -1,0 +1,243 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# 1.Read and check data
+```{r}
+#read and check data
+
+marketing <- read.csv("marketing.csv")   
+
+dim(marketing)
+head(marketing)
+
+```
+
+# 2.Check for NA values
+
+```{r}
+                                    
+any(is.na(marketing))                #If there´s any NA 是否存在任何缺失值
+
+colSums(is.na(marketing))            #NA for each var 每个变量的缺失值数量
+
+#----------------------------------------------------------------------------------
+# ---- Missingness overview ----
+n<- nrow(marketing)
+
+na_count<- colSums(is.na(marketing))
+na_pct<- round(na_count / n * 100, 2)
+
+na_sum<- data.frame(variable = names(na_count),na_count= as.integer(na_count),na_pct= na_pct)
+
+# 只看有缺失的列
+na_sum[na_sum$na_count > 0, ]
+
+# barplot of NA counts (only vars with NA)
+na_nonzero<- na_sum[na_sum$na_count > 0, ]
+
+barplot(height= na_nonzero$na_count,names.arg= na_nonzero$variable,
+  las= 2,main= "Missing values count (variables with NA)",ylab= "NA count")
+```
+## Initially, our preliminary observation of the data revealed a large number of missing values (NA). We also searched for NaN, nan, and na, but found no other notations for missing values. By analyzing the number of NAs in the variables, we found that all 79 NA values came from Income.
+
+
+
+```{r}
+#----------------------------------------------------------------------------------
+#(i) 缺失 vs 分类变量（Gender / CampaignChannel / CampaignType / Conversion）
+# Indicator: Income missing?
+marketing$Income_missing <- is.na(marketing$Income)
+table(marketing$Income_missing)
+prop.table(table(marketing$Income_missing))
+
+#income missing rate by group (categorical vars)
+vars_cat <- c("Gender", "CampaignChannel", "CampaignType", "Conversion")
+
+for (v in vars_cat) {
+  cat("\n--- Income missing by", v, "---\n")
+  tab <- table(marketing[[v]], marketing$Income_missing)
+  print(tab)
+  
+  # missing rate within each group
+  miss_rate <- prop.table(tab, margin = 1)[, "TRUE"]
+  print(round(miss_rate, 4))
+}
+
+tab_channel <- table(marketing$CampaignChannel, marketing$Income_missing)
+barplot(
+  prop.table(tab_channel, 1),
+  beside = FALSE,
+  legend.text = c("Income present", "Income missing"),
+  main = "Income missingness by CampaignChannel",
+  ylab = "Proportion within channel",
+  las = 2
+)
+
+```
+
+```{r}
+#(ii) 缺失 vs 数值变量（Age / AdSpend 等）
+# Compare distributions: Age, AdSpend, etc. between Income missing vs not
+vars_num <- c("Age", "AdSpend", "ClickThroughRate", "ConversionRate",
+              "WebsiteVisits", "PagesPerVisit", "TimeOnSite",
+              "SocialShares", "EmailOpens", "EmailClicks",
+              "PreviousPurchases", "LoyaltyPoints")
+
+# quick summary tables
+for (v in vars_num) {
+  cat("\n---", v, "---\n")
+  print(tapply(marketing[[v]], marketing$Income_missing, summary))
+}
+
+# visual: boxplot (example with Age and AdSpend)
+boxplot(Age ~ Income_missing, data = marketing,
+        main = "Age vs Income missingness",
+        xlab = "Income missing?", ylab = "Age")
+
+boxplot(AdSpend ~ Income_missing, data = marketing,
+        main = "AdSpend vs Income missingness",
+        xlab = "Income missing?", ylab = "AdSpend")
+
+#如果你想要更“统计一点”的证据（ p-value），可以加：
+
+# Categorical: chi-square test (where appropriate)
+chisq.test(table(marketing$CampaignChannel, marketing$Income_missing))
+
+# Numeric: Wilcoxon rank-sum (robust to non-normality)
+wilcox.test(Age ~ Income_missing, data = marketing)
+wilcox.test(AdSpend ~ Income_missing, data = marketing)
+```
+income missingness varies by campaign channel (SEO 0.48% vs PPC 1.39%), suggesting the missingness may be related to campaign characteristics rather than purely random. 1) Is the missing data random? (Answer: Slightly "biased")
+1.1 Gender
+Female Missing Rate 0.95%
+Male Missing Rate 0.98%
+Very small difference → The Gender dimension shows virtually no bias.
+1.2 CampaignChannel (The difference is most obvious here)
+Calculated Missing Rates (TRUE):
+PPC: 1.39% (highest)
+Email: 1.22%
+Referral: 0.88%
+Social Media: 0.86%
+SEO: 0.48% (lowest)
+Explanation: Income missing data is not evenly distributed; it is more common in PPC/Email and significantly less common in SEO.
+This means that income missing data is more like MAR (related to the observed variable) rather than completely random MCAR.
+1.3 CampaignType (Differences exist, but not as significant as with channel)
+Awareness: 1.15%
+Consideration: 1.11%
+Conversion: 0.75%
+Retention: 0.85%
+Explanation: Awareness/Consideration is slightly higher, Conversion/Retention is lower → There is a slight structural difference.
+1.4 Conversion (Target Variable)
+Conversion=0: 1.11%
+Conversion=1: 0.94% The difference is not significant, but it indicates that the income loss for those who did not convert is slightly higher. This should be mentioned when discussing treatment strategies (to avoid introducing label-related bias).
+2) Comparison of Numerical Variables: The missing group (TRUE) and the non-missing group (FALSE) are not the same group.
+The most striking finding in the summary is:
+Age: Average present income 43.66; Average missing income 49.96. The missing group is significantly older (median 52 vs 43). → This further supports the "non-random" finding.
+AdSpend: Present mean 4972; Missing mean 5376. The missing group has higher ad spending (and higher overall quantiles). → This also supports the "correlation between missing data and campaign/behavior".
+Other variables show relatively small changes, but you could add:
+Some engagement metrics (PagesPerVisit, etc.) are slightly higher/lower in the missing group, not drastically different, but Age/AdSpend is sufficient to form a chain of evidence that the missing data is not random.
+3) Your output also revealed an "unforeseen additional diagnostic point":
+In the ConversionRate summary, you see:
+The present group has min = -8 and max = 10.
+This indicates that there are indeed out-of-bounds/outliers in the data (which you previously identified and processed as NA).
+Meanwhile, the ConversionRate for the missing group (Income_missing=TRUE) is between 0 and 0.199, seemingly not out of bounds—indicating that these extreme values mainly occur in the non-missing groups.
+You can briefly mention this in the section "Data quality issues exist beyond missingness".
+4) Diagnostic conclusion
+“Income is the only variable with missing values ​​(79 cases, 0.96% of 8,200 observations).”
+“Missingness is not uniform across campaign channels (SEO 0.48% vs PPC 1.39%) and is associated with Age/AdSpend (older, higher-spend customers show more missing Income), suggesting missingness may be MAR rather than MCAR.”
+“Implication for later decisions: deletion vs imputation should consider potential bias introduced by non-random missingness.”
+
+
+
+
+# 3.Check for duplicate values
+```{r}
+
+sum(duplicated(marketing$CustomerID))     #check dup for csid检查是否有重复的 CustomerID
+
+sum(duplicated(marketing))                #check the dup if total same 查看是否存在完全重复的行
+
+# remove fully duplicated rows
+marketing <- marketing[!duplicated(marketing), ]
+
+# confirm new dimension
+dim(marketing)
+
+
+```
+## By observing the data, we can find that, unlike age, income, and channel, which may produce duplicate values, customer ID, as a value that should be unique, needs to be checked for duplicates first.By examining the data, we can see that there are 200 duplicate IDs, and the rows corresponding to these 200 duplicate IDs are also completely duplicated. Therefore, we can determine that this duplicate data is not a meaningful record.
+
+
+# 3.Validity & consistency checks
+
+```{r}
+summary(marketing[, c(
+  "Age", "Income", "AdSpend", "ClickThroughRate",
+  "ConversionRate", "WebsiteVisits", "PagesPerVisit",
+  "TimeOnSite", "SocialShares", "EmailOpens",
+  "EmailClicks", "PreviousPurchases", "LoyaltyPoints"
+)])
+
+# ConversionRate 越界（定义错误）
+sum(!is.na(marketing$ConversionRate) &
+    (marketing$ConversionRate < 0 | marketing$ConversionRate > 1))
+marketing$ConversionRate[
+  
+  !is.na(marketing$ConversionRate) &
+  (marketing$ConversionRate < 0 | marketing$ConversionRate > 1)
+] <- NA
+
+sum(marketing$EmailClicks > 0 & marketing$EmailOpens == 0)    #EmailClicks > 0 但 EmailOpens = 0
+
+sum(marketing$EmailClicks > 0 & marketing$WebsiteVisits == 0)    #EmailClicks > 0 但 WebsiteVisits = 0
+
+sum(marketing$WebsiteVisits == 0 & marketing$PagesPerVisit > 0)     #WebsiteVisits = 0 但 PagesPerVisit > 0
+
+sum(marketing$WebsiteVisits == 0 & marketing$TimeOnSite > 0)        #WebsiteVisits = 0 但 TimeOnSite > 0  没有访问 → 不可能有页面数 / 停留时间
+
+
+sum(marketing$Conversion == 1 & marketing$WebsiteVisits == 0)       #Conversion = 1 但 WebsiteVisits = 0  业务上高度可疑 但不是绝对不可能（站外转化）
+
+```
+
+
+```{r}
+#conversion分布
+table(marketing$Conversion)
+
+prop.table(table(marketing$Conversion))
+
+
+```
+
+
+```{r}
+# 选出数值变量
+num_vars <- marketing[, c(
+  "Age", "Income", "AdSpend", "ClickThroughRate",
+  "ConversionRate", "WebsiteVisits", "PagesPerVisit",
+  "TimeOnSite", "SocialShares", "EmailOpens",
+  "EmailClicks", "PreviousPurchases", "LoyaltyPoints",
+  "Conversion"
+)]
+
+# 相关矩阵
+cor_mat <- cor(num_vars, use = "complete.obs")
+
+# 画热力图
+heatmap(
+  cor_mat,
+  symm = TRUE,
+  col = colorRampPalette(c("blue", "white", "red"))(100),
+  margins = c(8, 8)
+)
+
+```
+
+
+
+
+
+
+
+
