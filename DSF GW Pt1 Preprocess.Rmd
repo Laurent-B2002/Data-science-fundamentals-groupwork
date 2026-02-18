@@ -1,0 +1,149 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# 1.Read and check data
+```{r}
+#read and check data
+
+marketing<- read.csv("marketing.csv")   
+
+dim(marketing)
+head(marketing)
+
+```
+
+# 2.Check for NA values
+```{r}
+                                    
+any(is.na(marketing))                #If there´s any NA
+
+colSums(is.na(marketing))            #NA for each var
+
+#----------------------------------------------------------------------------------
+# ---- Missingness overview ----
+
+n<-nrow(marketing)  #number of rows in dataset               
+
+na_count<-colSums(is.na(marketing))   #NA number for each vari
+na_pct<-round(na_count / n*100, 2)    #% as in total, keep 2 decimals
+
+na_sum<-data.frame(                  #build a summary table
+  variable=names(na_count),
+  na_count=as.integer(na_count),
+  na_pct=na_pct)
+
+na_sum[na_sum$na_count>0, ]   #only show NA vari
+                               
+```
+## Initially, We examined the missing values.It shows that all 79 missing observations are located in the variable Income, representing approximately 1% of the dataset. No other variables contain missing values.
+
+
+```{r}
+#----------------------------------------------------------------------------------
+#Income missingness diagnostics
+
+marketing$Income_missing<-is.na(marketing$Income)          #logical indicator NA-T other-F
+
+vars_cat<-c("Gender","CampaignChannel","CampaignType","Conversion")
+
+for (var in vars_cat) {                                          #Loop variables f missing rate Income
+  cat("\n Income missing by", var,"\n")                          #Print header label
+  tab<-table(marketing[[var]],marketing$Income_missing)        #contingency table:rows:categories,columns:Income_NA F/T
+  print(round(prop.table(tab,1)[,"TRUE"],4))}                  #missing rate within each group
+
+```
+## The 1% NA in Income is fairly balanced across categories.
+Only Age shows a small but statistically significant difference.
+Overall, Income NA is minor and unlikely to affect the analysis.
+
+
+```{r}
+#Compare numeric variables by Income missingness
+
+vars_num<-c("Age", "AdSpend")                                                   #Select num-variables t compare
+
+for (var in vars_num) {                                                        #Loop each num-variable
+  cat("\n", var, "\n")                                                         #header
+  print(tapply(marketing[[var]],
+               marketing$Income_missing,                                      #separately for Inc-miss T/F
+               summary))}                                                     #Compute summary statistics
+
+chisq.test(table(marketing$CampaignChannel,
+                 marketing$Income_missing))                                #Chi-square-test for categorical association
+
+```
+## Income missingness slightly related to Age, but shows no strong association with AdSpend or CampaignChannel.
+
+
+# 3.Check for duplicate values
+```{r}
+#chek dup amount
+dupid_count<-sum(duplicated(marketing$CustomerID))        #Check duplicate CustomerID
+dupid_count
+
+duprow_count<-sum(duplicated(marketing))                  #Check fully-dup rows
+duprow_count
+
+#check if the same dup
+dupid_rows<-which(duplicated(marketing$CustomerID))       #dupID rows
+dupfull_rows<-which(duplicated(marketing))                #dup full rows
+all(dupid_rows==dupfull_rows)                          #compare if same
+
+marketing<-marketing[!duplicated(marketing), ]             #remove f-dup rows
+
+dim(marketing)                                              #new dimension
+
+```
+## We found 200 duplicated CustomerID values and by further inspection show these 200 exactly are the 200 fully duplicated rows.Therefore, we remove them, and after removing the duplicated rows the dataset contains 8000 observations and 19 variables.
+
+
+# 4.Validity & consistency checks
+```{r}
+#Income IQR outlier
+Q1<-quantile(marketing$Income,0.25,na.rm=TRUE)   #25th percentile
+Q3<-quantile(marketing$Income,0.75,na.rm=TRUE)   #75th percentile
+IQR_val<-IQR(marketing$Income,na.rm=TRUE)         #interquartile range
+
+low_fence<-Q1-1.5 * IQR_val
+up_fence<-Q3+1.5 * IQR_val                     #up&low boundary
+
+sum(marketing$Income<low_fence|marketing$Income>up_fence,na.rm=TRUE)     #Count num of outliers
+
+marketing$Income[!is.na(marketing$Income)&
+                   (marketing$Income<low_fence|marketing$Income>up_fence)]   #show outlier values(exclud NA)
+
+marketing$Income[marketing$Income==1e+21]<-NA                            #Replace all 1e+21 with NA
+sum(marketing$Income==1e+21,na.rm=TRUE)                              #Verify no 1e+21 remain
+
+```
+## The IQR method was used to identify potential outliers in Income. Two extreme values both equal to 1e+21, which is not a plausible income value and was therefore recoded as NA.
+
+
+```{r}
+#Summary for key numeric variables
+summary(marketing[,c("Age","Income","AdSpend","ClickThroughRate","ConversionRate","WebsiteVisits",
+                     "PagesPerVisit","TimeOnSite","SocialShares","EmailOpens","EmailClicks",
+                     "PreviousPurchases","LoyaltyPoints")])
+
+#ConversionRate must between 0-1
+marketing$ConversionRate[marketing$ConversionRate<0|marketing$ConversionRate>1]<-NA   
+
+summary(marketing$ConversionRate)
+
+```
+## The summary revealed the ConversionRate contained values outside the valid range 0-1. So the values were treated as errors and recoded as NA.
+
+```{r}
+#Export cleaned dataset
+write.csv(marketing,"marketing_cleaned Pt1.csv",row.names=FALSE)
+
+
+## Handover to Part 2
+## Data cleaning and validity checks have been completed.
+## All invalid entries have been recoded as NA.
+## The dataset is now ready for exploratory analysis and modelling.
+## Please use marketing_cleaned.csv for Part 2 analysis.
+
+```
+
+
