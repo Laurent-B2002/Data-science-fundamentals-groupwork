@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+from sklearn.preprocessing import StandardScaler
 df = pd.read_csv("marketing_cleaned Pt1.csv")
 
 # df = df.dropna()
@@ -31,6 +31,14 @@ engagement_cols = [
     "EmailOpens",
     "EmailClicks",
     "SocialShares"
+]
+
+engagement_vars = [
+    "WebsiteVisits",
+    "PagesPerVisit",
+    "TimeOnSite",
+    "EmailOpens",
+    "EmailClicks"
 ]
 
 print("Show graphs? y/n")
@@ -119,6 +127,12 @@ if str(x) == "y":
     plt.xlabel("AdSpend Bin")
     plt.show()
 
+for col in cat_cols:
+    for col_eng in engagement_vars:
+        sns.boxplot(x=col, y=col_eng, data=df)
+        plt.xticks(rotation=45)
+        plt.title(f"{col} by {col_eng}")
+        plt.show()
 
 for col in cat_cols:
     print(df.groupby(col, observed=True)["Conversion"].mean())
@@ -150,12 +164,27 @@ campaign_summary = df.groupby("CampaignType")[num_cols].agg(
 
 print(campaign_summary)
 
+corr = df.corr(numeric_only=True)
+
+print(corr[engagement_vars].sort_values(by="WebsiteVisits", ascending=False))
+print(df.groupby("CampaignChannel")[engagement_vars].mean())
+print(df.groupby("CampaignType")[engagement_vars].mean())
+
+scaler = StandardScaler()
+scaled_values = scaler.fit_transform(df[engagement_vars])
+
+df["EngagementScore"] = scaled_values.mean(axis=1)
+print(df.corr(numeric_only=True)["EngagementScore"].sort_values(ascending=False))
+print(df.groupby("CampaignChannel")["EngagementScore"].mean())
+print(df.groupby("CampaignType")["EngagementScore"].mean())
+drivers = df.corr(numeric_only=True)[engagement_vars]
+
+print(drivers)
+
 # Thoughts
-# Overall: Conversion CampaignType gives the best conversion rate. Larger AdSpend increases the chance of conversion.
-# Conversion CampaignType seems to be performing the best because it doesn't require an lot of AdSpend, it has high conversion even with AdSpend below 1000. Other Campaign Types however, experience a significant jump when AdSpend goes above 5000.
-# There's no other noticable difference between the CampaignTypes. So, even though the AdSpend is evenly distributed between the types and customers engage with them the same, Conversion campaign still has an unexpected boost in Conversion.
-# Customers with higher WebsiteVisits(starting from 11), PreviousPurchases(more than 1), LoyaltyPoints(more than a thousand), PagesPerVisit(more than 3), TimeOnSite(more than 5), EmailOpens(starting from 6) and EmailClicks(more than 2) have a higher chance of conversion.
-# Important note, there's no real benefit in increasing numbers above the ones that I stated above. So Capmpaign with AdSpend of 6000 performs the same as with 10000 (Threshold effect).
-# Convertion Rate is a strange feature. I'm not sure if it's worth digging into it. Thoughts?
-# Threshold effect might be a useful term during the presentation, as well as Conversion rate lift.
+# Alright, so I think I'm done with this part. The strange thing that I noticed is that engagement features aren't really affected by anything, even though they are affecting conversion
+# I also created an engagement score var to combine all of the engagement features together, but it didn't really give me anything new.
+# Perhaps Laurent will be able to find some non-linear dependencies, but as far as my analysis goes, more AdSpend plus more Engagement score equals better Conversion
+# Gender, Income or Age did not have any effect on the engagement score or on the conversion.
+# My biggest point is still the fact that conversion CampaignType performs better than others on average, and doesn't require as much AdSpend. This plus the correlation matrices plus distribution plus comparing boxplots should be enough for the presentation.
 
