@@ -12,7 +12,7 @@ registerDoParallel(cl)
 df <- read_csv("marketing_cleaned Pt1.csv")
 #remove irrelevant and possibly leakage causing variables
 df <- df %>%
-  select(-CustomerID, -Income_missing, -ConversionRate) %>%
+  select(-CustomerID, -Income_missing) %>%
   mutate(
     Conversion      = factor(Conversion, levels = c(0,1), labels = c("No", "Yes")),
     Gender          = as.factor(Gender),
