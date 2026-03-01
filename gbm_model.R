@@ -5,7 +5,7 @@ library(pROC)        #ROC/AUC
 df <- read_csv("marketing_cleaned Pt1.csv")
 
 df <- df %>%
-  select(-CustomerID, -Income_missing, -ConversionRate) %>%  # drop non-features / leakage
+  select(-CustomerID, -Income_missing) %>%  # drop non-features / leakage
   mutate(
     Conversion      = factor(Conversion, levels = c(1, 0), labels = c("Yes", "No")),
     Gender          = as.factor(Gender),
@@ -48,3 +48,34 @@ plot(roc_obj)                              # ROC plot
 
 gbm_model$bestTune                          # best hyperparameters found
 gbm_model                                  # model summary
+
+#----------------------------------------------------------------------------
+cm <- confusionMatrix(gbm_pred, test$Conversion, positive = "Yes")
+
+TN <- unname(cm$table["No", "No"])
+FN <- unname(cm$table["No", "Yes"])
+FP <- unname(cm$table["Yes", "No"])
+TP <- unname(cm$table["Yes", "Yes"])
+
+gbm_results <- data.frame(
+  n.trees = gbm_model$bestTune$n.trees,
+  interaction.depth = gbm_model$bestTune$interaction.depth,
+  shrinkage = gbm_model$bestTune$shrinkage,
+  TN = TN,
+  FP = FP,
+  FN = FN,
+  TP = TP,
+  Accuracy = unname(cm$overall["Accuracy"]),
+  Precision = unname(cm$byClass["Pos Pred Value"]),
+  Recall = unname(cm$byClass["Sensitivity"]),
+  Specificity = unname(cm$byClass["Specificity"]),
+  F1 = unname(cm$byClass["F1"]),
+  BalancedAccuracy = unname(cm$byClass["Balanced Accuracy"]),
+  AUC = as.numeric(auc(roc_obj))
+)
+
+write.csv(gbm_results, "gbm_test_results.csv", row.names = FALSE)
+
+write.csv(gbm_model$results, "gbm_cv_results.csv", row.names = FALSE)
+
+
