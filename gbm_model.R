@@ -7,7 +7,7 @@ df <- read_csv("marketing_cleaned Pt1.csv")
 df <- df %>%
   select(-CustomerID, -Income_missing) %>%  # drop non-features / leakage
   mutate(
-    Conversion      = factor(Conversion, levels = c(1, 0), labels = c("Yes", "No")),
+    Conversion      = factor(Conversion, levels = c(0,1), labels = c("No", "Yes")),
     Gender          = as.factor(Gender),
     CampaignChannel = as.factor(CampaignChannel),
     CampaignType    = as.factor(CampaignType)
@@ -74,8 +74,8 @@ gbm_results <- data.frame(
   AUC = as.numeric(auc(roc_obj))
 )
 
-write.csv(gbm_results, "gbm_test_results.csv", row.names = FALSE)
+write.csv(gbm_results, "gbm_test_results_new.csv", row.names = FALSE)
 
-write.csv(gbm_model$results, "gbm_cv_results.csv", row.names = FALSE)
+write.csv(gbm_model$results, "gbm_cv_results_new.csv", row.names = FALSE)
 
 
