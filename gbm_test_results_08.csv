@@ -1,0 +1,2 @@
+"n.trees","interaction.depth","shrinkage","TN","FP","FN","TP","Accuracy","Precision","Recall","Specificity","F1","BalancedAccuracy","AUC"
+200,1,0.1,147,48,185,1203,0.852811118130133,0.961630695443645,0.86671469740634,0.753846153846154,0.911708980674498,0.810280425626247,0.869917978275327

@@ -38,7 +38,11 @@ gbm_model <- train(
 )
 
 gbm_prob <- predict(gbm_model, test, type = "prob")[, "Yes"]  # P(Yes)
-gbm_pred <- predict(gbm_model, test)                          # class
+
+threshold <- 0.7  
+
+gbm_pred <- ifelse(gbm_prob > threshold, "Yes", "No")
+gbm_pred <- factor(gbm_pred, levels = c("No","Yes"))                          # class
 
 confusionMatrix(gbm_pred, test$Conversion, positive = "Yes")   # confusion matrix
 
@@ -74,8 +78,8 @@ gbm_results <- data.frame(
   AUC = as.numeric(auc(roc_obj))
 )
 
-write.csv(gbm_results, "gbm_test_results_new.csv", row.names = FALSE)
+write.csv(gbm_results, "gbm_test_results_07.csv", row.names = FALSE)
 
-write.csv(gbm_model$results, "gbm_cv_results_new.csv", row.names = FALSE)
+write.csv(gbm_model$results, "gbm_cv_results_07.csv", row.names = FALSE)
 
 
