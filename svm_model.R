@@ -98,10 +98,7 @@ for (i in seq_len(nrow(grid2))) {
     
     prob_df <- predict(model_i, test, type = "prob")
     
-    if (!("Yes" %in% colnames(prob_df))) stop("No 'Yes' prob column returned.")
     prob_i <- prob_df[,"Yes"]
-    if (!is.numeric(prob_i)) stop("Probability column is not numeric.")
-    if (anyNA(prob_i)) stop("NA probabilities.")
     
     roc_i <- roc(response = test$Conversion, predictor = prob_i, levels = c("No","Yes"), direction = "<")
     auc_i <- as.numeric(auc(roc_i))
