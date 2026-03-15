@@ -2,17 +2,16 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
+
+# Importing and looking over the data
 df = pd.read_csv("marketing_cleaned Pt1.csv")
-
-# df = df.dropna()
-# df = df[df["Income"] < 500000]
-
 print(df.head())
 print(df.info())
 conversion_rate = df["Conversion"].mean()
 print(f"Overall Conversion Rate: {conversion_rate:.2%}")
 print(df.describe(include='all'))
 
+# Separating columns
 num_cols = [
     "Age", "AdSpend",
     "WebsiteVisits",
@@ -40,6 +39,9 @@ engagement_vars = [
     "EmailOpens",
     "EmailClicks"
 ]
+
+# Graphs section. There are a LOT of graphs here, most are not useful. 
+# Just comparing different features between each other and looking for correlations or disrepancies
 
 print("Show graphs? y/n")
 x = input()
@@ -127,13 +129,14 @@ if str(x) == "y":
     plt.xlabel("AdSpend Bin")
     plt.show()
 
-for col in cat_cols:
-    for col_eng in engagement_vars:
-        sns.boxplot(x=col, y=col_eng, data=df)
-        plt.xticks(rotation=45)
-        plt.title(f"{col} by {col_eng}")
-        plt.show()
+    for col in cat_cols:
+        for col_eng in engagement_vars:
+            sns.boxplot(x=col, y=col_eng, data=df)
+            plt.xticks(rotation=45)
+            plt.title(f"{col} by {col_eng}")
+            plt.show()
 
+# Checking the precise conversion numbers across different features
 for col in cat_cols:
     print(df.groupby(col, observed=True)["Conversion"].mean())
 
@@ -143,6 +146,8 @@ for col in num_cols:
 for col in engagement_cols:
     print(df.groupby(pd.qcut(df[col], 4), observed=True)["Conversion"].mean())
 
+
+# Splitting the data in several bins to see if there are any threasholds.
 print(df.groupby(["CampaignType", pd.cut(df["AdSpend"], bins = [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000])], observed=True)["Conversion"].mean().unstack())
 print(df.groupby([pd.cut(df["EmailOpens"], bins = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])], observed=True)["Conversion"].mean())
 print(df.groupby([pd.qcut(df["WebsiteVisits"], 25)], observed=True)["Conversion"].mean())
@@ -152,6 +157,7 @@ print(df.groupby([pd.qcut(df["PagesPerVisit"], 10)], observed=True)["Conversion"
 print(df.groupby([pd.qcut(df["TimeOnSite"], 10)], observed=True)["Conversion"].mean())
 print(df.groupby([pd.qcut(df["EmailClicks"], 9)], observed=True)["Conversion"].mean())
 
+# Checking the mean of different features across the different campaign types
 campaign_summary = df.groupby("CampaignType")[engagement_cols].agg(
     ["mean"]
 )
@@ -170,6 +176,7 @@ print(corr[engagement_vars].sort_values(by="WebsiteVisits", ascending=False))
 print(df.groupby("CampaignChannel")[engagement_vars].mean())
 print(df.groupby("CampaignType")[engagement_vars].mean())
 
+# Creating EngagementScore variable. Wasn't useful
 scaler = StandardScaler()
 scaled_values = scaler.fit_transform(df[engagement_vars])
 
