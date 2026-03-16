@@ -26,11 +26,11 @@ idx <- createDataPartition(df$Conversion, p = 0.8, list = FALSE)
 train <- df[idx, ]
 test <- df[-idx, ]
 
-#hyperparameter grid for svm
+#finding good sigma choices
 sig <- sigest(Conversion ~ ., data = train)
 sigma_grid <- as.numeric(sig)
 sigma_grid <- sigma_grid[is.finite(sigma_grid) & sigma_grid > 0]
-
+#hyperparameter tuning grid
 grid <- expand.grid(
   sigma = sigma_grid,
   C     = 2^seq(-2, 6, by = 1)
@@ -79,7 +79,7 @@ grid <- svm_model$results[, c("sigma", "C")]
 #bigger C causes problems
 grid2 <- subset(grid, C <= 8)
 results_list <- vector("list", nrow(grid2))
-
+#for saving all the metrics for each combination of sigma and c
 for (i in seq_len(nrow(grid2))) {
   
   sigma_i <- grid2$sigma[i]
